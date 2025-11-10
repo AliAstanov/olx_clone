@@ -1,0 +1,26 @@
+
+---------admin tasdiqlaydi productni
+func (u *UserRepo) ApproveProduct(ctx context.Context, productId uuid.UUID) error {
+    query := `
+        UPDATE products 
+        SET status = 'active' 
+        WHERE id = $1
+    `
+    _, err := u.db.Exec(ctx, query, productId)
+    return err
+}'
+
+func (s *storage) RejectAdvertisement(ctx context.Context, adID uuid.UUID) error {
+	query := `UPDATE products SET status = 'rejected' WHERE id = $1`
+	_, err := s.db.Exec(ctx, query, adID)
+	if err != nil {
+		log.Println("error rejecting advertisement:", err)
+		return err
+	}
+	return nil
+}
+
+
+--file yuklash image bilan ishlash manbasi 1: you tube; 2: gin-gonic.com
+ 1: https://www.youtube.com/watch?v=ssLcGwHv7Hc&t=177s
+ 2: https://gin-gonic.com/docs/examples
