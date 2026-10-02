@@ -3,7 +3,7 @@ package storage
 import (
 	"github.com/AliAstanov/olx_clone/storage/postgres"
 	repoi "github.com/AliAstanov/olx_clone/storage/repoI"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type StorageI interface {
@@ -11,7 +11,7 @@ type StorageI interface {
 	GetCategoriesRepo() repoi.CategoriesRepoI
 	GetSubcategoriesRepo() repoi.SubcategoriesRepoI
 	GetProductsRepo() repoi.ProductRepoI
-	GetAdminsRepo() repoi.AdminsRepoI       // Admins uchun repository
+	GetAdminsRepo() repoi.AdminsRepoI // Admins uchun repository
 }
 
 type storage struct {
@@ -19,10 +19,10 @@ type storage struct {
 	categoriesRepo    repoi.CategoriesRepoI
 	subcategoriesRepo repoi.SubcategoriesRepoI
 	productRepo       repoi.ProductRepoI
-	adminsRepo        repoi.AdminsRepoI       // Admins uchun repository
+	adminsRepo        repoi.AdminsRepoI // Admins uchun repository
 }
 
-func NewStorage(db *pgx.Conn) StorageI {
+func NewStorage(db *pgxpool.Pool) StorageI {
 	return &storage{
 		userRepo:          postgres.NewUserRepo(db),
 		categoriesRepo:    postgres.NewCategoryRepo(db),
@@ -51,4 +51,3 @@ func (s *storage) GetProductsRepo() repoi.ProductRepoI {
 func (s *storage) GetAdminsRepo() repoi.AdminsRepoI {
 	return s.adminsRepo
 }
-

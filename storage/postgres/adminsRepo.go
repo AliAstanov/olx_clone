@@ -7,14 +7,14 @@ import (
 	helpers "github.com/AliAstanov/helper"
 	"github.com/AliAstanov/olx_clone/models"
 	repoi "github.com/AliAstanov/olx_clone/storage/repoI"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type AdminsRepo struct {
-	db *pgx.Conn
+	db *pgxpool.Pool
 }
 
-func NewAdminsRepo(db *pgx.Conn) repoi.AdminsRepoI {
+func NewAdminsRepo(db *pgxpool.Pool) repoi.AdminsRepoI {
 	return &AdminsRepo{
 		db: db,
 	}
@@ -63,7 +63,7 @@ func (a *AdminsRepo) CreateAdmin(ctx context.Context, req *models.Admins) (*mode
 }
 func (a *AdminsRepo) GetAdmins(ctx context.Context, req *models.GetListReq) (*models.GetListAdmins, error) {
 	log.Println("Started GetAdmins with limit:", req.Limit, "and page:", req.Page)
-	
+
 	var admins []models.Admins
 
 	limit := req.Limit
@@ -92,13 +92,13 @@ func (a *AdminsRepo) GetAdmins(ctx context.Context, req *models.GetListReq) (*mo
 			$2
 	`
 
-	rows, err := a.db.Query(ctx, query,limit,offset)
-	if err != nil{
+	rows, err := a.db.Query(ctx, query, limit, offset)
+	if err != nil {
 		log.Println("Error executing GetAdmins query:", err)
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	for rows.Next() {
 		var admin models.Admins
 		if err := rows.Scan(
@@ -123,7 +123,7 @@ func (a *AdminsRepo) GetAdmins(ctx context.Context, req *models.GetListReq) (*mo
 
 	return &models.GetListAdmins{
 		Admins: admins,
-		Count: len(admins),
+		Count:  len(admins),
 	}, nil
 }
 func (a *AdminsRepo) GetAdminById(ctx context.Context, id string) (*models.Admins, error) {

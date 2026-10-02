@@ -7,20 +7,21 @@ import (
 	helpers "github.com/AliAstanov/helper"
 	"github.com/AliAstanov/olx_clone/models"
 	repoi "github.com/AliAstanov/olx_clone/storage/repoI"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type UserRepo struct {
-	db *pgx.Conn
+	db *pgxpool.Pool
 }
 
-func NewUserRepo(db *pgx.Conn) repoi.UserRepoI {
+func NewUserRepo(db *pgxpool.Pool) repoi.UserRepoI {
 	return &UserRepo{
 		db: db,
 	}
 }
 
 func (u *UserRepo) CreateUsers(ctx context.Context, req *models.User) (*models.User, error) {
+	log.Println("Creating user with ID:==========>>>>", req.UserId)
 
 	query := `
 		INSERT INTO 

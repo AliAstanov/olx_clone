@@ -6,10 +6,10 @@ import (
 	"os"
 
 	"github.com/AliAstanov/olx_clone/config"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func ConnToDb(pgCfg config.PgConfig) (*pgx.Conn, error) {
+func ConnToDb(pgCfg config.PgConfig) (*pgxpool.Pool, error) {
 
 	ctx := context.Background()
 
@@ -22,7 +22,7 @@ func ConnToDb(pgCfg config.PgConfig) (*pgx.Conn, error) {
 		pgCfg.DatabaseName,
 	)
 
-	db, err := pgx.Connect(ctx, url)
+	db, err := pgxpool.New(ctx, url)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v \n", err)
 		return nil, err

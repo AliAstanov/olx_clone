@@ -13,4 +13,5 @@ type ProductRepoI interface {
 	UpdateProducts(ctx context.Context, req *models.UpdateProductReq, id string) (*models.Product, error)
 	DeleteProducts(ctx context.Context, id string) error
 	SetStatus(ctx context.Context, productID string, status models.ProductStatus) error
+	AddProductImage(ctx context.Context, productId, imageUrl string) (string, error)
 }

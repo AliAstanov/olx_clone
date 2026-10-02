@@ -1,9 +1,7 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"time"
 
 	"github.com/AliAstanov/olx_clone/api"
 	"github.com/AliAstanov/olx_clone/config"
@@ -22,10 +20,6 @@ func main() {
 	}
 
 	storage := storage.NewStorage(db)
-	var time time.Time
-	var bol bool
-	fmt.Println("time=",time)
-	fmt.Println("bool=",bol)
 
 	api.Api(storage)
 }

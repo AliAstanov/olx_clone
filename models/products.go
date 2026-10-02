@@ -36,7 +36,8 @@ type Product struct {
 	SubcategoryID uuid.UUID     `json:"subcategory_id"` // O'zgartirildi
 	Image         string        `json:"image"`
 	IsNew         bool          `json:"is_new"`
-	ExpiresAt     time.Time     `json:"expires_at"`
+	ExpiresAt     *time.Time     `json:"expires_at"`
+	Images        []string    `json:"images"` 
 }
 
 type CreateProductReq struct {
@@ -64,13 +65,9 @@ type GetListProducts struct {
 	Count    int       `json:"count"`
 }
 
-// SetStatus statusni o‘zgartirish uchun
-// func (p *Product) SetStatus(status ProductStatus) error {
-// 	switch status {
-// 	case StatusPending, StatusActive, StatusRejected, StatusExpires:
-// 		p.Status = status
-// 		return nil
-// 	default:
-// 		return errors.New("invalid status")
-// 	}
-// }
+type ProductImage struct {
+    ID        uuid.UUID `json:"id"`
+    ProductID uuid.UUID `json:"product_id"`
+    ImageURL  string    `json:"image_url"`
+    CreatedAt time.Time `json:"created_at"`
+}

@@ -51,25 +51,21 @@ func Api(storage storage.StorageI) {
 	router.DELETE("/delete-admin/:id", h.DeleteAdmin)
 
 	//product
-	router.POST("/create-product", h.CreateProduct)
+	router.POST("/create-product", h.CreateProductWithImages)
 	router.GET("/get-products", h.GetProducts)
-	router.GET("/get-product/:id", h.GetAdminById)
-	router.PUT("/update-product", h.UpdateProducts)
-	router.DELETE("/delete-product", h.DeleteProduct)
+	router.GET("/get-product/:id", h.GetProductById)
+	router.PUT("/update-product/:id", h.UpdateProducts)
+	router.DELETE("/delete-product/:id", h.DeleteProduct)
+	// router.PUT("/approve-product/:id/:status", h.ApproveProduct)
 
 	//approved_and_reject
 	router.PUT("/approve-product/:id/:status", h.ApproveProduct)
 
 	//browser da pageni ochib beradi
 	router.GET("/get", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "index.html", gin.H{"laa":"olalla"})
+		c.HTML(http.StatusOK, "index.html", gin.H{"laa": "olalla"})
 	})
-
-	//post image for product
-	router.POST("/", h.PostImageForProduct)
 
 	router.Run(":8081")
 
 }
-
-

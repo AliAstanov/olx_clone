@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"time"
 
-	helpers "github.com/AliAstanov/helper"
 	"github.com/AliAstanov/olx_clone/models"
 	"github.com/AliAstanov/olx_clone/pkg/utils"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -31,7 +31,7 @@ func (h *handler) CreateUser(ctx *gin.Context) {
 		return
 	}
 
-	if err := helpers.DataParser1(reqBody, user); err != nil {
+	if err := utils.DataParser1(reqBody, user); err != nil {
 		log.Print("Failed to parse request body:", err)
 		ctx.JSON(400, gin.H{"error": "Failed to parse request body"})
 		return
@@ -41,7 +41,7 @@ func (h *handler) CreateUser(ctx *gin.Context) {
 	user.UserId = uuid.New()
 	user.CreatedAt = time.Now()
 	user.Password = HashedPassword
-
+log.Println("---===-=-=-=-=-=-=--ssss")
 	_, err = h.storage.GetUserRepo().CreateUsers(ctx, user)
 	if err != nil {
 		log.Println("Failed to create users:", err)
@@ -71,72 +71,70 @@ func (h *handler) GetUsers(ctx *gin.Context) {
 		log.Println("Invalid page parametr:", err)
 	}
 
-	users, err := h.storage.GetUserRepo().GetUsers(ctx,&reqBody)
+	users, err := h.storage.GetUserRepo().GetUsers(ctx, &reqBody)
 	if err != nil {
 		ctx.JSON(500, gin.H{"error": "Failed to get user list"})
 		log.Println("Failed to get user list", err)
 		return
 	}
 
-	ctx.JSON(200,users)
+	ctx.JSON(200, users)
 
 }
 
-func (h *handler)GetUserById(ctx *gin.Context){
+func (h *handler) GetUserById(ctx *gin.Context) {
 	id := ctx.Param("id")
 
-
-	user, err := h.storage.GetUserRepo().GetUserByid(ctx,id)
+	user, err := h.storage.GetUserRepo().GetUserByid(ctx, id)
 	if err != nil {
 		ctx.JSON(500, gin.H{"error": "Failed to get user by ID"})
 		log.Println("Failed to get user by ID:", err)
 		return
 	}
 
-	ctx.JSON(200,user)
+	ctx.JSON(200, user)
 }
 
-func(h *handler)UpdateUser(ctx *gin.Context){
+func (h *handler) UpdateUser(ctx *gin.Context) {
 	var reqBody models.UpdateUserReq
 	id := ctx.Param("id")
-	
+
 	if err := ctx.BindJSON(&reqBody); err != nil {
-		ctx.JSON(400,gin.H{"error":"Invalid request body"})
-		log.Println("Invalid request body:",err)
+		ctx.JSON(400, gin.H{"error": "Invalid request body"})
+		log.Println("Invalid request body:", err)
 		return
 	}
 
-
-	user, err := h.storage.GetUserRepo().UpdateUser(ctx,&reqBody,id)
-	if err != nil{
-		ctx.JSON(500,gin.H{"error":"Failed to update user"})
-		log.Println("Failed to update user:",err)
+	user, err := h.storage.GetUserRepo().UpdateUser(ctx, &reqBody, id)
+	if err != nil {
+		ctx.JSON(500, gin.H{"error": "Failed to update user"})
+		log.Println("Failed to update user:", err)
 		return
 	}
 
-	ctx.JSON(200,user)
+	ctx.JSON(200, user)
 }
 
-func(h *handler)DeletUser(ctx *gin.Context){
+func (h *handler) DeletUser(ctx *gin.Context) {
 
 	id := ctx.Param("id")
-	
-	err := h.storage.GetUserRepo().DeleteUser(ctx,id)
-	if err != nil{
-		ctx.JSON(500,gin.H{"error":"Failed on delete user"})
-		log.Println("Failed on delete user:",err)
+
+	err := h.storage.GetUserRepo().DeleteUser(ctx, id)
+	if err != nil {
+		ctx.JSON(500, gin.H{"error": "Failed on delete user"})
+		log.Println("Failed on delete user:", err)
 		return
 	}
-	ctx.JSON(200,"delete user soccessfully")
+	ctx.JSON(200, "delete user soccessfully")
 }
 
-func(h *handler)ArchiveAndDeleteUser(ctx *gin.Context){
-	
+func (h *handler) ArchiveAndDeleteUser(ctx *gin.Context) {
+
 	err := h.storage.GetUserRepo().ArchiveDeleteUsers(ctx)
 	if err != nil {
-		ctx.JSON(500,gin.H{"error":"Failed archive user"})
+		ctx.JSON(500, gin.H{"error": "Failed archive user"})
 		log.Println("Failed archive user")
 		return
 	}
-	ctx.JSON(200,gin.H{"message":"Archive user soccessfully"})
+	ctx.JSON(200, gin.H{"message": "Archive user soccessfully"})
 }

@@ -2,46 +2,82 @@ package handlers
 
 import (
 	"log"
-	"net/http"
 	"strconv"
 	"time"
 
-	helpers "github.com/AliAstanov/helper"
 	"github.com/AliAstanov/olx_clone/models"
+	"github.com/AliAstanov/olx_clone/pkg/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
-func (h *handler) CreateProduct(ctx *gin.Context) {
+func (h *handler) CreateProductWithImages(ctx *gin.Context) {
+	// Multipart form olish (product data + files)
+	form, err := ctx.MultipartForm()
+	if err != nil {
+		ctx.JSON(400, gin.H{"error": "Invalid form data"})
+		return
+	}
+
+	// JSON field’dan product ma’lumotini olish
+	productData := form.Value["product"] // "product" field JSON string bo‘ladi
+	if len(productData) == 0 {
+		ctx.JSON(400, gin.H{"error": "Product data is required"})
+		return
+	}
+
 	var reqBody models.CreateProductReq
-	var product = &models.Product{}
-
-	if err := ctx.BindJSON(&reqBody); err != nil {
-		ctx.JSON(400, gin.H{"error": "Invalid requst body"})
-		log.Println("Invalid requestBody:", err)
+	if err := utils.ParseJSON(productData[0], &reqBody); err != nil {
+		ctx.JSON(400, gin.H{"error": "Invalid product JSON"})
 		return
 	}
 
-	if err := helpers.DataParser1(reqBody, product); err != nil {
-		ctx.JSON(400, gin.H{"error": "Failed Parsing data on create product"})
-		log.Println("Failed Parsing data on create product:", err)
+	// Product struct yaratish
+	product := &models.Product{}
+	if err := utils.DataParser1(reqBody, product); err != nil {
+		ctx.JSON(400, gin.H{"error": "Failed parsing product data"})
 		return
 	}
+
 	product.ID = uuid.New()
 	product.CreatedAt = time.Now()
 	product.Status = models.StatusPending
 
-	_, err := h.storage.GetProductsRepo().CreateProducts(ctx, product)
+	// DB ga saqlash
+	createdProduct, err := h.storage.GetProductsRepo().CreateProducts(ctx, product)
 	if err != nil {
-		ctx.JSON(500, gin.H{"error": "Failed to Create Product"})
-		log.Println("Failed to CreateProduct:", err)
+		ctx.JSON(500, gin.H{"error": "Failed to create product"})
 		return
 	}
+
+	// Fayllarni olish (field name: "images")
+	files := form.File["images"]
+	var imageURLs []string
+	for _, file := range files {
+		filename := uuid.New().String() + "_" + file.Filename
+		path := "assets/uploads/products/" + filename
+
+		if err := ctx.SaveUploadedFile(file, path); err != nil {
+			ctx.JSON(500, gin.H{"error": "Failed to save image"})
+			return
+		}
+
+		imageURL := "/assets/uploads/products/" + filename
+		imageURLs = append(imageURLs, imageURL)
+
+		// DB ga yozish
+		_, err := h.storage.GetProductsRepo().AddProductImage(ctx, createdProduct.ID.String(), imageURL)
+		if err != nil {
+			ctx.JSON(500, gin.H{"error": "Failed to save image in DB"})
+			return
+		}
+	}
+
 	ctx.JSON(201, gin.H{
-		"message": "Product created successfully and is awaiting admin approval.",
-		"product": product,
+		"message": "Product created successfully with images",
+		"product": createdProduct,
+		"images":  imageURLs,
 	})
-	log.Println("Product created successfully and is awaiting admin approval with ID:", product.ID)
 }
 
 func (h *handler) GetProducts(ctx *gin.Context) {
@@ -164,30 +200,4 @@ func (h *handler) ApproveProduct(ctx *gin.Context) {
 
 	ctx.JSON(200, gin.H{"message": "Product approved successfully", "product": productForUpdate})
 	log.Println("Product approved successfully with ID:", productForUpdate.ID)
-}
-
-func (h *handler) PostImageForProduct(ctx *gin.Context) {
-
-	//Get th file
-	file, err := ctx.FormFile("image")
-	if err != nil {
-		ctx.HTML(http.StatusOK, "index.html", gin.H{
-			"error": "Failed to upload image",
-		})
-		return
-	}
-	// Save the file
-	err = ctx.SaveUploadedFile(file, "assets/uploads/"+file.Filename)
-	if err != nil {
-		ctx.HTML(http.StatusOK, "index.html", gin.H{
-			"error": "Failed to Saved image",
-		})
-		return
-	}
-
-	// Render the page
-	ctx.HTML(http.StatusOK, "index.html", gin.H{
-		"image": "/assets/uploads/" + file.Filename,
-	})
-
 }

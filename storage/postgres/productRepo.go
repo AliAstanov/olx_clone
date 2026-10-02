@@ -9,14 +9,15 @@ import (
 	halpers "github.com/AliAstanov/helper"
 	"github.com/AliAstanov/olx_clone/models"
 	repoi "github.com/AliAstanov/olx_clone/storage/repoI"
-	"github.com/jackc/pgx/v5"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type ProductRepo struct {
-	db *pgx.Conn
+	db *pgxpool.Pool
 }
 
-func NewProductRepo(db *pgx.Conn) repoi.ProductRepoI {
+func NewProductRepo(db *pgxpool.Pool) repoi.ProductRepoI {
 	return &ProductRepo{db: db}
 }
 
@@ -66,6 +67,57 @@ func (p *ProductRepo) CreateProducts(ctx context.Context, req *models.Product) (
 
 	return product, nil
 }
+func (p *ProductRepo) GetProductsById(ctx context.Context, id string) (*models.Product, error) {
+	var product models.Product
+	var expiresAt *time.Time
+
+	query := `
+        SELECT id, user_id, title, description, price, status, created_at, subcategory_id, image, is_new, expires_at
+        FROM products
+        WHERE id = $1
+    `
+	err := p.db.QueryRow(ctx, query, id).Scan(
+		&product.ID,
+		&product.UserID,
+		&product.Title,
+		&product.Description,
+		&product.Price,
+		&product.Status,
+		&product.CreatedAt,
+		&product.SubcategoryID,
+		&product.Image,
+		&product.IsNew,
+		&expiresAt,
+	)
+	if err != nil {
+		log.Println("error on GetProductById:", err)
+		return nil, err
+	}
+
+	// ExpiresAt pointerga tayinlash (NULL bo'lsa nil)
+	product.ExpiresAt = expiresAt
+
+	// Product images olish
+	imgQuery := `SELECT image_url FROM product_images WHERE product_id = $1`
+	rows, err := p.db.Query(ctx, imgQuery, id)
+	if err != nil {
+		log.Println("error on GetProductById images:", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var url string
+		if err := rows.Scan(&url); err != nil {
+			log.Println("error scanning product images:", err)
+			return nil, err
+		}
+		product.Images = append(product.Images, url)
+	}
+
+	return &product, nil
+}
+
 func (p *ProductRepo) GetListProducts(ctx context.Context, req *models.GetListReq) (*models.GetListProducts, error) {
 	limit := req.Limit
 	if limit == 0 {
@@ -79,26 +131,12 @@ func (p *ProductRepo) GetListProducts(ctx context.Context, req *models.GetListRe
 	offset := int(halpers.Offset(limit, page))
 
 	query := `
-		SELECT 
-			id,
-			user_id,
-			title,
-			description,	
-			price,
-			status,
-			created_at,		
-			subcategory_id,
-			image,
-			is_new,
-			expires_at
-		FROM
-			products
-		OFFSET
-			$1
-		limit
-			$2
-		)`
-	rows, err := p.db.Query(ctx, query, limit, offset)
+        SELECT id, user_id, title, description, price, status, created_at, subcategory_id, image, is_new, expires_at
+        FROM products
+        ORDER BY created_at DESC
+        OFFSET $1 LIMIT $2
+    `
+	rows, err := p.db.Query(ctx, query, offset, limit)
 	if err != nil {
 		log.Println("error on GetListProducts:", err)
 		return nil, err
@@ -107,24 +145,49 @@ func (p *ProductRepo) GetListProducts(ctx context.Context, req *models.GetListRe
 
 	var products []models.Product
 	for rows.Next() {
-		var product models.Product
+		var pdt models.Product
+		var expiresAt *time.Time
+
 		if err := rows.Scan(
-			&product.ID,
-			&product.UserID,
-			&product.Title,
-			&product.Description,
-			&product.Price,
-			&product.Status,
-			&product.CreatedAt,
-			&product.SubcategoryID,
-			&product.Image,
-			&product.IsNew,
-			&product.ExpiresAt,
+			&pdt.ID,
+			&pdt.UserID,
+			&pdt.Title,
+			&pdt.Description,
+			&pdt.Price,
+			&pdt.Status,
+			&pdt.CreatedAt,
+			&pdt.SubcategoryID,
+			&pdt.Image,
+			&pdt.IsNew,
+			&expiresAt,
 		); err != nil {
-			log.Println("erroron GetListProducts:", err)
+			log.Println("error scanning product:", err)
 			return nil, err
 		}
-		products = append(products, product)
+
+		pdt.ExpiresAt = expiresAt
+
+		// Product images olish
+		imgRows, err := p.db.Query(ctx, "SELECT image_url FROM product_images WHERE product_id = $1", pdt.ID)
+		if err != nil {
+			log.Println("error fetching images:", err)
+			return nil, err
+		}
+
+		var imgs []string
+		for imgRows.Next() {
+			var url string
+			if err := imgRows.Scan(&url); err != nil {
+				log.Println("error scanning images:", err)
+				imgRows.Close()
+				return nil, err
+			}
+			imgs = append(imgs, url)
+		}
+		imgRows.Close()
+		pdt.Images = imgs
+
+		products = append(products, pdt)
 	}
 
 	return &models.GetListProducts{
@@ -132,93 +195,33 @@ func (p *ProductRepo) GetListProducts(ctx context.Context, req *models.GetListRe
 		Count:    len(products),
 	}, nil
 }
-func (p *ProductRepo) GetProductsById(ctx context.Context, id string) (*models.Product, error) {
-	query := `
-		SELECT
-			id,
-			user_id,
-			title,
-			description,	
-			price,
-			status,
-			created_at,		
-			subcategory_id,
-			image,
-			is_new,
-			expires_at
-		FROM
-			products
-		WHERE
-			id = $1
-	`
-	var product models.Product
-	err := p.db.QueryRow(ctx, query, id).Scan(
-		&product.ID,
-		&product.UserID,
-		&product.Title,
-		&product.Description,
-		&product.Price,
-		&product.Status,
-		&product.CreatedAt,
-		&product.SubcategoryID,
-		&product.Image,
-		&product.IsNew,
-		&product.ExpiresAt,
-	)
-	if err != nil {
-		log.Println("error on GetProductById:", err)
-		return nil, err
-	}
-	return &product, nil
-}
+
 func (p *ProductRepo) UpdateProducts(ctx context.Context, req *models.UpdateProductReq, id string) (*models.Product, error) {
 	query := `
-		UPDATE
-			products
-		SET 
-			title = $1,
-			description = $2,
-			price = $3,
-			image = $4,
-			is_new = $5,
-			expires_at = $6
-		WHERE
-			id = $7
-	`
-	// Old productni olish
-	oldProduct, err := p.GetProductsById(ctx, id)
-	if err != nil {
-		log.Println("error getting old product:", err)
-		return nil, err
+        UPDATE products
+        SET title = $1,
+            description = $2,
+            price = $3,
+            image = $4,
+            is_new = $5,
+            expires_at = $6
+        WHERE id = $7
+    `
+
+	// Agar foydalanuvchi ExpiresAt yuborgan bo‘lsa, pointerga aylantiramiz
+	var expiresAt *time.Time
+	if !req.ExpiresAt.IsZero() {
+		expiresAt = &req.ExpiresAt
 	}
 
-	// Eski qiymatlarni to'ldirish
-	if req.Title == "" {
-		req.Title = oldProduct.Title
-	}
-	if req.Description == "" {
-		req.Description = oldProduct.Description
-	}
-	if req.Price == 0.0 {
-		req.Price = oldProduct.Price
-	}
-	if req.Image == "" {
-		req.Image = oldProduct.Image
-	}
-	req.IsNew = req.IsNew || oldProduct.IsNew
-	if req.ExpiresAt.IsZero() {
-		req.ExpiresAt = oldProduct.ExpiresAt
-	}
-
-	// Yangilash
-	_, err = p.db.Exec(ctx, query,
+	_, err := p.db.Exec(ctx, query,
 		req.Title,
 		req.Description,
 		req.Price,
 		req.Image,
 		req.IsNew,
-		req.ExpiresAt,
-		id, // ID oxirgi parametr
+		expiresAt,
+		id,
 	)
 	if err != nil {
 		log.Println("error on UpdateProducts:", err)
@@ -226,13 +229,13 @@ func (p *ProductRepo) UpdateProducts(ctx context.Context, req *models.UpdateProd
 	}
 
 	// Yangilangan productni olish
-	UpdatedProduct, err := p.GetProductsById(ctx, id)
+	updatedProduct, err := p.GetProductsById(ctx, id)
 	if err != nil {
 		log.Println("error getting updated product:", err)
 		return nil, err
 	}
 
-	return UpdatedProduct, nil
+	return updatedProduct, nil
 }
 
 func (p *ProductRepo) DeleteProducts(ctx context.Context, id string) error {
@@ -255,9 +258,9 @@ func (p *ProductRepo) SetStatus(ctx context.Context, productID string, status mo
 
 	switch status {
 	case models.StatusPending, models.StatusActive, models.StatusRejected, models.StatusExpires:
-		
+
 		var expiresAt *time.Time
-		
+
 		if status == models.StatusActive {
 			tempExpiresAt := time.Now().AddDate(0, 1, 0)
 			expiresAt = &tempExpiresAt
@@ -287,4 +290,22 @@ func (p *ProductRepo) SetStatus(ctx context.Context, productID string, status mo
 		// Noto'g'ri status
 		return errors.New("invalid status")
 	}
+}
+
+func (p *ProductRepo) AddProductImage(ctx context.Context, productId, imageUrl string) (string, error) {
+	var id string
+
+	query := `
+        INSERT INTO product_images (id, product_id, image_url)
+        VALUES ($1, $2, $3)
+        RETURNING id
+    `
+
+	err := p.db.QueryRow(ctx, query,
+		uuid.New().String(),
+		productId,
+		imageUrl,
+	).Scan(&id)
+
+	return id, err
 }

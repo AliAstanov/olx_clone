@@ -7,14 +7,14 @@ import (
 	helpers "github.com/AliAstanov/helper"
 	"github.com/AliAstanov/olx_clone/models"
 	repoi "github.com/AliAstanov/olx_clone/storage/repoI"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type CategoriesRepo struct {
-	db *pgx.Conn
+	db *pgxpool.Pool
 }
 
-func NewCategoryRepo(db *pgx.Conn) repoi.CategoriesRepoI {
+func NewCategoryRepo(db *pgxpool.Pool) repoi.CategoriesRepoI {
 	return &CategoriesRepo{
 		db: db,
 	}
@@ -133,7 +133,7 @@ func (c *CategoriesRepo) UpdateCategories(ctx context.Context, req *models.Updat
 		WHERE
 			id = $2	
 	`
-	_, err := c.db.Exec(ctx, query, req.Name,id)
+	_, err := c.db.Exec(ctx, query, req.Name, id)
 	if err != nil {
 		log.Println("error on UpdateCategories:", err)
 		return nil, err
